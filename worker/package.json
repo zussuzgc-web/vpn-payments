@@ -1,0 +1,16 @@
+{
+  "name": "vpn-payments-notify",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "URL оповещения FreeKassa + эндпоинт статуса заказа для VPN-подписки",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "kv:create": "wrangler kv namespace create ORDERS",
+    "test": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./test-local.ps1"
+  },
+  "devDependencies": {
+    "wrangler": "^4.140.0"
+  }
+}

@@ -1,0 +1,6 @@
+# Локальные секреты для `wrangler dev`. На проде задаются через `wrangler secret put`.
+# Этот файл в .gitignore и никогда не попадает в репозиторий.
+MERCHANT_ID="123456"
+SECRET_KEY="test-secret-key"
+BOT_TOKEN=""
+API_SECRET="test-api-secret"

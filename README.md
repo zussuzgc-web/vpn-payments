@@ -1,7 +1,16 @@
 # VPN Payments — FreeKassa × GitHub Pages × Cloudflare Worker
 
 Приём оплаты VPN-подписки в Telegram-боте. Страницы возврата — на GitHub Pages (0 ₽),
-URL оповещения — в Cloudflare Worker (0 ₽).
+URL оповещения и статус заказа — в Cloudflare Worker (0 ₽).
+
+## Установка
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
+```
+
+Вопросы задаёт скрипт, секреты уходят прямо в Cloudflare и в `bot/.env`
+(файл в `.gitignore`). Подробности и ручной путь — в **[SETUP.md](SETUP.md)**.
 
 ## Адреса
 
@@ -12,25 +21,24 @@ URL оповещения — в Cloudflare Worker (0 ₽).
 | Статус заказа | `https://zussuzgc-web.github.io/vpn-payments/order/?order_id=<ID>` |
 | URL оповещения | `https://<worker>.<subdomain>.workers.dev/notify` |
 
-Инструкция по подключению кабинета FreeKassa, созданию KV и деплою Worker'а —
-в **[SETUP.md](SETUP.md)**.
-
 ## Структура
 
 ```
 success/          страница «оплата прошла»
 fail/             страница «оплата не прошла»
 order/            страница «ждём оплату», опрашивает /status
-assets/           стили и JS разбора параметров FreeKassa
+assets/           стили, разбор параметров FreeKassa, конфиг адреса Worker'а
 worker/src/       Cloudflare Worker: /create, /notify, /status, /ping
-bot/              слой оплаты для aiogram 3 + рабочий пример бота
+worker/test-local.ps1   25 проверок полного цикла без ключей и без интернета
+bot/              слой оплаты для aiogram 3 + рабочий пример
+setup.ps1         установщик: KV, секреты, деплой, проверка, коммит
 ```
 
 ## Почему Worker, а не Pages
 
 GitHub Pages отдаёт только статику. URL оповещения обязан принять запрос FreeKassa,
 проверить `signature = MD5(merchant_id:order_id:order_amount:order_currency:order_status:secret_key)`,
-сохранить статус и подтвердить оплату в чат — это исполняемый код, то есть Worker.
+сохранить статус в KV и подтвердить оплату в чат — это исполняемый код.
 
 ## Конечные точки Worker
 

@@ -155,13 +155,16 @@ export default {
         fk.searchParams.set("success_url", `${PAGES}/success/`);
         fk.searchParams.set("fail_url", `${PAGES}/fail/`);
 
+        const origin = new URL(request.url).origin;
+        const apiParam = encodeURIComponent(origin);
         return json({
           order_id: orderId,
           amount,
           payment_url: fk.toString(),
-          status_page: `${PAGES}/order/?order_id=${encodeURIComponent(orderId)}`,
+          status_page: `${PAGES}/order/?order_id=${encodeURIComponent(orderId)}&api=${apiParam}`,
           success_url: `${PAGES}/success/`,
           fail_url: `${PAGES}/fail/`,
+          notify_url: `${origin}/notify`,
         });
       }
 

@@ -26,19 +26,27 @@
         <div class="spinner" id="spinner"></div>
 
         <div id="wait-block" style="display: none">
-          <div class="badge wait" id="state-box">
-            <span id="state-icon"></span>
-          </div>
+          <div class="badge wait" id="state-box"><span id="state-icon"></span></div>
           <h1 id="state-title">Ожидаем оплату</h1>
           <p class="lead" id="state-note"></p>
+        </div>
+
+        <div class="note warn" id="offline" style="display: none">
+          <span>⚠️</span>
+          <div>
+            Не удалось получить статус от сервера оплаты. Если вы уже оплатили — подождите минуту и
+            нажмите «Обновить». Ключ всё равно выдастся в боте после подтверждения оплаты.
+          </div>
         </div>
 
         <div class="rows">
           <div class="row"><span>Заказ</span><b class="mono" id="order-id">—</b></div>
           <div class="row"><span>Сумма</span><b id="amount">—</b></div>
+          <div class="row"><span>Тариф</span><b id="plan">—</b></div>
           <div class="row"><span>Состояние</span><b id="state-dot"><span class="dot wait"></span>Ожидает</b></div>
           <div class="row"><span>Создан</span><b class="mono" id="created-at">—</b></div>
           <div class="row"><span>Оплачен</span><b class="mono" id="paid-at">—</b></div>
+          <div class="row"><span>Срок оплаты</span><b class="mono" id="expires">—</b></div>
         </div>
 
         <div class="actions">
@@ -48,14 +56,18 @@
             </svg>
             Вернуться в бот
           </a>
-          <a class="btn ghost" href="/">Все адреса проекта</a>
+          <button class="btn ghost" id="retry" type="button">Обновить статус</button>
         </div>
 
         <div class="timer" id="countdown"></div>
-        <div class="foot">Страница обновляет статус автоматически каждые 5 секунд.</div>
+        <div class="foot">
+          Статус обновляется каждые 5 секунд, пока вкладка открыта.<br />
+          <a href="../">Все адреса проекта</a>
+        </div>
       </div>
     </div>
 
+    <script src="../assets/config.js"></script>
     <script src="../assets/app.js"></script>
   </body>
 </html>

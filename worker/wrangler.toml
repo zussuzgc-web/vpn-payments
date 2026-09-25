@@ -6,7 +6,7 @@ compatibility_flags = ["nodejs_compat"]
 # KV-хранилище для статусов заказов
 [[kv_namespaces]]
 binding = "ORDERS"
-id = "ЗАМЕНИТЬ_НА_ТВОЙ_KV_ID"
+id = "0a8159f2182f490a99767102e120fd40"
 
 # Секреты задаются командами (см. README.md), НЕ хранятся в файле:
 #   wrangler secret put MERCHANT_ID

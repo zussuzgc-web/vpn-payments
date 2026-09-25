@@ -41,11 +41,11 @@
               <small>https://zussuzgc-web.github.io/vpn-payments/fail/</small>
             </div>
           </a>
-          <a href="order/">
+          <a href="order/?order_id=demo">
             <i>⏳</i>
             <div>
               <b>Страница статуса заказа</b>
-              <small>https://zussuzgc-web.github.io/vpn-payments/order/?order_id=...</small>
+              <small>https://zussuzgc-web.github.io/vpn-payments/order/?order_id=…</small>
             </div>
           </a>
         </div>
@@ -55,8 +55,15 @@
           <div>
             <b>URL оповещения</b> не может жить на GitHub Pages: Pages отдаёт только статику и не умеет
             проверять подпись. Он размещён в Cloudflare Worker —
-            <span id="notify-url">https://vpn-payments-notify.zussuzgc-web.workers.dev/notify</span>
-            (бесплатно, до 100 000 запросов в сутки).
+            <span class="mono" id="notify-url">…</span> (бесплатно, до 100 000 запросов в сутки).
+          </div>
+        </div>
+
+        <div class="note warn" id="setup-hint" style="display: none">
+          <span>🔧</span>
+          <div>
+            Worker ещё не задеплоен: запусти <code>setup.ps1</code> в корне репозитория — он создаст
+            KV, спросит ключи FreeKassa и опубликует Worker одной командой.
           </div>
         </div>
 
@@ -67,12 +74,28 @@
             </svg>
             @FreeFi_bot
           </a>
+          <a class="btn ghost" href="order/?order_id=demo">Проверить страницу статуса</a>
         </div>
 
         <div class="foot">Инструкция по подключению — в файле <span class="mono">SETUP.md</span> репозитория.</div>
       </div>
     </div>
 
-    <script src="assets/app.js"></script>
+    <script src="assets/config.js"></script>
+    <script>
+      (function () {
+        var api = (window.VPN_PAY && window.VPN_PAY.api) || "";
+        var el = document.getElementById("notify-url");
+        if (el) el.textContent = api ? api + "/notify" : "не настроен";
+        if (/example\.|PLACEHOLDER/.test(api)) {
+          var hint = document.getElementById("setup-hint");
+          if (hint) hint.style.display = "block";
+        }
+        var bot = (window.VPN_PAY && window.VPN_PAY.bot) || "FreeFi_bot";
+        document.querySelectorAll("[data-bot-url]").forEach(function (el) {
+          el.href = "https://t.me/" + bot;
+        });
+      })();
+    </script>
   </body>
 </html>

@@ -1,18 +1,32 @@
 # Настройка: три URL для FreeKassa
 
-Проект состоит из двух частей:
-
 | Часть | Где живёт | Зачем | Стоимость |
 |---|---|---|---|
 | Страницы `success` / `fail` / `order` | GitHub Pages | то, куда возвращается клиент | 0 ₽ |
-| URL оповещения (`/notify`) | Cloudflare Worker | приём, проверка подписи, зачисление | 0 ₽ (100 000 запр./сутки) |
+| URL оповещения (`/notify`) | Cloudflare Worker | приём, проверка подписи, зачисление | 0 ₽ |
 
 GitHub Pages не исполняет код, поэтому оповещение туда положить нельзя: страница
-не проверит MD5-подпись и не сможет записать статус заказа.
+не проверит MD5-подпись и не запишет статус заказа.
 
 ---
 
-## 1. Адреса страниц (уже работают)
+## Быстрый старт
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
+```
+
+Установщик сам: проверит Node → войдёт в Cloudflare (откроется браузер) →
+создаст KV → спросит ключи FreeKassa и токен бота → задеплоит Worker →
+впишет его адрес в страницы и `bot/.env` → прогоняет живой цикл оплаты →
+предложит закоммитить и запушить.
+
+Один раз вручную нужно открыть дашборд Cloudflare, чтобы создался поддомен
+`workers.dev` (см. раздел 2) — установщик остановится с понятным сообщением.
+
+---
+
+## 1. Адреса страниц (работают сразу)
 
 | Назначение | URL |
 |---|---|
@@ -21,137 +35,108 @@ GitHub Pages не исполняет код, поэтому оповещение
 | Страница статуса заказа | `https://zussuzgc-web.github.io/vpn-payments/order/?order_id=<ID>` |
 | Обзор адресов | `https://zussuzgc-web.github.io/vpn-payments/` |
 
-FreeKassa докидывает к адресам свои параметры: `ID`, `order_id`, `amount`,
-`currency`, `status`, `signature` — страницы их читают и показывают.
-Ничего дописывать не нужно, но можно добавить `&autoredirect=1`, чтобы клиента
-через 45 секунд само отправляло в бота.
+FreeKassa докидывает к адресам `ID`, `order_id`, `amount`, `currency`, `status`,
+`signature` — страницы их читают и показывают.
+
+Дополнительные параметры страниц:
+
+| Параметр | Что делает |
+|---|---|
+| `&autoredirect=1` | через 45 с вернуть клиента в бота |
+| `&autoredirect_seconds=10` | свой таймер (только вместе с `autoredirect=1`) |
+| `&api=https://…workers.dev` | адрес Worker'а, если не совпадает с `assets/config.js` |
+
+Ссылка на страницу статуса, которую отдаёт `/create`, уже содержит `order_id` и
+`api` — то есть открытая ботом страница работает, даже если `assets/config.js`
+ещё не обновлён на GitHub Pages.
 
 ---
 
-## 2. URL оповещения (Cloudflare Worker, бесплатно)
+## 2. Поддомен workers.dev (один раз, вручную)
 
-### 2.1 Аккаунт и установка
+Cloudflare не даёт создать поддомен через API — только открытием дашборда:
 
-```bash
-npm i -g wrangler
-wrangler login
+```
+https://dash.cloudflare.com/28a27d229f3d2e41a1cc351aa44c33de/workers/workers-and-pages
 ```
 
-### 2.2 KV-хранилище для заказов
+Открой страницу, Cloudflare сам предложит создать `workers.dev` (имя выбираешь
+любое свободное). После этого `npx wrangler deploy` начнёт публиковать Worker.
+
+---
+
+## 3. Ручная установка (без setup.ps1)
 
 ```bash
 cd worker
-wrangler kv namespace create ORDERS
+npm install
+npx wrangler login
+npx wrangler kv namespace create ORDERS        # id вписать в wrangler.toml
+npx wrangler secret bulk secrets.json          # {"MERCHANT_ID":"…","SECRET_KEY":"…","BOT_TOKEN":"…","API_SECRET":"…"}
+npx wrangler deploy
 ```
 
-Скопируйте выведенный `id` в `worker/wrangler.toml` вместо `ЗАМЕНИТЬ_НА_ТВОЙ_KV_ID`.
-
-### 2.3 Секреты
-
-Из кабинета FreeKassa → «Настройки кабинета» возьмите **ID кабинета** и
-**Секретный ключ**.
-
-```bash
-wrangler secret put MERCHANT_ID   # ID кабинета FreeKassa (число)
-wrangler secret put SECRET_KEY    # секретный ключ FreeKassa
-wrangler secret put BOT_TOKEN     # токен @FreeFi_bot от @BotFather
-wrangler secret put API_SECRET    # любой длинный случайный ключ, его знает только бот
-```
-
-Сгенерировать `API_SECRET`:
+`API_SECRET` — любая длинная строка, её знает только бот:
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-### 2.4 Публикация
+Проверка:
 
 ```bash
-wrangler deploy
-```
-
-Адрес в выводе (обычно `https://vpn-payments-notify.<ваш-поддомен>.workers.dev`).
-Если поддомен отличается — поправьте его в трёх местах:
-
-* `worker/src/index.js` → константа `PAGES` (только если меняли адрес Pages)
-* `bot/.env.example` → `FREEKASSA_API`
-* `index.html` → блок «URL оповещения»
-
-### 2.5 Проверка
-
-```bash
-curl https://<ваш-worker>.workers.dev/ping
-# {"ok":true,"service":"vpn-payments-notify",...}
-
-# создать тестовый заказ
-curl -X POST https://<ваш-worker>.workers.dev/create \
-  -H "x-api-secret: <API_SECRET>" \
-  -H "content-type: application/json" \
-  -d '{"order_id":"test-1","amount":"10.00","chat_id":123456789,"plan":"month"}'
-
-# оповещение с ПРАВИЛЬНОЙ подписью (подставьте свои merchant_id/secret)
-python -c "import hashlib;print(hashlib.md5(b'12:1:10.00:RUB:PAID:secret').hexdigest())"
-
-curl "https://<ваш-worker>.workers.dev/notify?order_id=1&order_amount=10.00&order_currency=RUB&order_status=PAID&ID=99&signature=<подпись>"
-# {"status":"ok"}
+curl https://<worker>.workers.dev/ping
+curl -X POST https://<worker>.workers.dev/create -H "x-api-secret: <API_SECRET>" \
+  -H "content-type: application/json" -d '{"order_id":"t1","amount":"10.00","chat_id":1}'
 ```
 
 ---
 
-## 3. Что вписать в кабинете FreeKassa
+## 4. Локальный тест без интернета и ключей
 
-**Настройки → Уведомление URL** (это и есть URL оповещения):
-
-```
-https://<ваш-worker>.workers.dev/notify
+```powershell
+powershell -ExecutionPolicy Bypass -File .\worker\test-local.ps1
 ```
 
-**Проверка подписи** оставьте включённой (Worker проверяет MD5 сам).
-
-**URL успешной оплаты** и **URL при неудаче** в кабинете указывать не обязательно:
-бот передаёт их в ссылке на оплату (`success_url` / `fail_url`). Если кабинет
-требует их задать — впишите адреса из раздела 1 как значения по умолчанию.
+Поднимает `wrangler dev` и проверяет 25 утверждений: создание заказа, сборка
+ссылки на оплату, отклонение поддельной подписи (403), приём настоящей,
+переход `created → paid → error`, защита `/create`, 404, CORS, приём `GET /notify`.
 
 ---
 
-## 4. Связка с ботом
+## 5. Что вписать в кабинете FreeKassa
 
-`bot/freekassa.py` — весь платёжный слой, `bot/example_bot.py` — рабочий пример.
+**Настройки кабинета → Уведомление URL:**
 
-```bash
-cd bot
-pip install aiogram httpx
+```
+https://<worker>.workers.dev/notify
 ```
 
-`.env.example` → `.env`, заполнить `FREEKASSA_API` и `FREEKASSA_SECRET`
-(тот же `API_SECRET`, что и в `wrangler secret put API_SECRET`).
+**Проверка подписи** — включить: Worker проверяет `signature` сам и отвечает 403
+на подделку.
 
-Куда что подключается:
+**URL успешной оплаты / при неудаче** в кабинете задавать не обязательно: бот
+передаёт их в ссылке (`success_url`, `fail_url`). Если кабинет требует — впиши
+адреса из раздела 1 как значения по умолчанию.
+
+---
+
+## 6. Связка с ботом
+
+Подробности в [`bot/README.md`](bot/README.md).
 
 ```
 /buy в боте
    └─ create_order()  ──POST /create──▶  Worker
-                                          └─ вернёт payment_url (freekassa.ru/merchant/payment.php)
+                                          └─ вернёт payment_url
    └─ кнопка «Оплатить N ₽» ──▶ FreeKassa
-   └─ страница статуса ──GET /status──▶ Worker (обновляет состояние)
+   └─ страница статуса ──GET /status──▶ Worker (каждые 5 с)
 
-FreeKassa (оплата или отказ)
-   ├─ клиент ──▶ /success/ или /fail/   (GitHub Pages)
-   └─ сервер ──▶ /notify                (Worker): проверка подписи → KV → сообщение в чат
+FreeKassa
+   ├─ клиент ──▶ /success/ или /fail/            (GitHub Pages)
+   └─ сервер ──▶ /notify                          (Worker)
+                    проверка подписи → KV → сообщение в чат
 ```
 
-Чтобы выдача подписки шла независимо от клиента, Worker сам шлёт
-`✅ Оплата получена` в чат пользователя, а бот на `/start pay_<order_id>` отдаёт ключ.
-Если бот работает на своём сервере — можно вместо `BOT_TOKEN` принимать оповещение
-на `/webhook/pay` и вызывать `verify_signature()` из `bot/freekassa.py`.
-
----
-
-## 5. Деплой страниц
-
-```bash
-git push
-```
-
-Pages включены для ветки `main`, корневая папка. Сборка занимает ~1 минуту.
-Проверить: `https://zussuzgc-web.github.io/vpn-payments/success/?order_id=demo&amount=299&currency=RUB&status=PAID`
+Оплату подтверждает Worker, а не бот: клиент может закрыть вкладку, бот — упасть,
+подписка всё равно выдастся.
