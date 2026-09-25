@@ -19,7 +19,7 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1
 | URL успешной оплаты | `https://zussuzgc-web.github.io/vpn-payments/success/` |
 | URL при неудаче | `https://zussuzgc-web.github.io/vpn-payments/fail/` |
 | Статус заказа | `https://zussuzgc-web.github.io/vpn-payments/order/?order_id=<ID>` |
-| URL оповещения | `https://<worker>.<subdomain>.workers.dev/notify` |
+| URL оповещения | `https://vpn-payments-notify.freefi-vpn.workers.dev/notify` |
 
 ## Структура
 

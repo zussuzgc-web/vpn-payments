@@ -29,18 +29,25 @@ const safeEqual = (a = "", b = "") => {
 };
 
 const readBody = async (request) => {
+  const query = Object.fromEntries(new URL(request.url).searchParams.entries());
   const type = request.headers.get("content-type") || "";
+  let parsed = null;
+
   if (type.includes("application/json")) {
-    try {
-      return await request.json();
-    } catch {
-      return {};
+    const text = await request.text().catch(() => "");
+    if (text.trim()) {
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = null;
+      }
     }
+  } else {
+    const form = await request.formData().catch(() => null);
+    if (form && [...form.keys()].length) parsed = Object.fromEntries(form.entries());
   }
-  const form = await request.formData().catch(() => null);
-  if (form) return Object.fromEntries(form.entries());
-  const url = new URL(request.url);
-  return Object.fromEntries(url.searchParams.entries());
+
+  return { ...query, ...(parsed || {}) };
 };
 
 const log = (data) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...data }));

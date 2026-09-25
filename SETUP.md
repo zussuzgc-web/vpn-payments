@@ -52,16 +52,16 @@ FreeKassa докидывает к адресам `ID`, `order_id`, `amount`, `cu
 
 ---
 
-## 2. Поддомен workers.dev (один раз, вручную)
+## 2. Поддомен workers.dev
 
-Cloudflare не даёт создать поддомен через API — только открытием дашборда:
+У этого аккаунта поддомен уже создан: `freefi-vpn.workers.dev`, поэтому адрес Worker'а —
+`https://vpn-payments-notify.freefi-vpn.workers.dev`.
 
-```
-https://dash.cloudflare.com/28a27d229f3d2e41a1cc351aa44c33de/workers/workers-and-pages
-```
-
-Открой страницу, Cloudflare сам предложит создать `workers.dev` (имя выбираешь
-любое свободное). После этого `npx wrangler deploy` начнёт публиковать Worker.
+Новому аккаунту Cloudflare `wrangler deploy` предложит создать поддомен сам
+(вопрос в терминале). Если хочешь выбрать имя вручную — это делается в дашборде:
+`https://dash.cloudflare.com/<account-id>/workers/workers-and-pages`. Через API
+(`PUT /accounts/<id>/workers/subdomain`) это тоже возможно, но доступно не всем
+токенам, поэтому установщик этим не занимается.
 
 ---
 
@@ -109,7 +109,7 @@ powershell -ExecutionPolicy Bypass -File .\worker\test-local.ps1
 **Настройки кабинета → Уведомление URL:**
 
 ```
-https://<worker>.workers.dev/notify
+https://vpn-payments-notify.freefi-vpn.workers.dev/notify
 ```
 
 **Проверка подписи** — включить: Worker проверяет `signature` сам и отвечает 403

@@ -163,11 +163,25 @@ try {
   $cors = Invoke-Api -Path '/status?order_id=local-test-1'
   Assert-True 'Access-Control-Allow-Origin: *' ($cors.Headers['Access-Control-Allow-Origin'] -eq '*') ($cors.Headers.Keys -join ',')
 
-  Write-Host "`n9. GET /notify тоже принимается" -ForegroundColor Cyan
+  Write-Host "`n9. GET /notify и POST с пустым JSON-телом" -ForegroundColor Cyan
   $sigGet = Get-Signature -OrderId 'local-test-3' -Amount '50.00' -Currency 'RUB' -Status 'PAID'
   $get = Invoke-Api -Path "/notify?order_id=local-test-3&order_amount=50.00&order_currency=RUB&order_status=PAID&signature=$sigGet"
   Assert-True 'GET /notify вернул 200' ($get.StatusCode -eq 200) $get.StatusCode
   Assert-True 'order_id без созданного заказа тоже принимается' ((Get-Status 'local-test-3').status -eq 'paid')
+
+  $req = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Post, "$base/notify?order_id=local-test-4&order_amount=60.00&order_currency=RUB&order_status=PAID&signature=" + (Get-Signature -OrderId 'local-test-4' -Amount '60.00' -Currency 'RUB' -Status 'PAID'))
+  $req.Content = [System.Net.Http.StringContent]::new('', [System.Text.Encoding]::UTF8, 'application/json')
+  $res = $client.SendAsync($req).GetAwaiter().GetResult()
+  Assert-True 'POST с пустым JSON-телом читает query' ([int]$res.StatusCode -eq 200) ([int]$res.StatusCode)
+  Assert-True 'статус стал paid' ((Get-Status 'local-test-4').status -eq 'paid')
+
+  Write-Host "`n10. Параметры из тела важнее query" -ForegroundColor Cyan
+  Invoke-Api -Path '/create' -Method 'POST' -Headers @{ 'x-api-secret' = $apiSecret } -Body @{ order_id = 'local-test-5'; amount = '70.00' } | Out-Null
+  $mixed = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Post, "$base/notify?order_id=WRONG&order_amount=1.00&order_currency=RUB&order_status=PAID&signature=x")
+  $mixed.Content = [System.Net.Http.StringContent]::new(('{"order_id":"local-test-5","order_amount":"70.00","order_currency":"RUB","order_status":"PAID","signature":"' + (Get-Signature -OrderId 'local-test-5' -Amount '70.00' -Currency 'RUB' -Status 'PAID') + '"}'), [System.Text.Encoding]::UTF8, 'application/json')
+  $res2 = $client.SendAsync($mixed).GetAwaiter().GetResult()
+  Assert-True 'тело JSON перекрывает query' ([int]$res2.StatusCode -eq 200) ([int]$res2.StatusCode)
+  Assert-True 'local-test-5 оплачен' ((Get-Status 'local-test-5').status -eq 'paid')
 
   Write-Host "`n────────────────────────────────────" -ForegroundColor DarkGray
   if ($failed -eq 0) { Write-Host "Пройдено: $passed   Провалено: $failed" -ForegroundColor Green }

@@ -30,6 +30,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls } catch { }
 $repo = Split-Path -Parent $MyInvocation.MyCommand.Path
 $workerDir = Join-Path $repo 'worker'
 $toml = Join-Path $workerDir 'wrangler.toml'
@@ -68,12 +69,22 @@ function Confirm {
 }
 
 function Invoke-Wrangler {
-  param([string[]]$Args, [switch]$AllowFail)
-  $out = & node.exe $wrangler @Args 2>&1 | Out-String
-  if ($LASTEXITCODE -ne 0) {
+  param([string[]]$WranglerArgs, [switch]$AllowFail)
+  # stderr от wrangler не должен становиться исключением PowerShell
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  $lines = & node.exe $wrangler '--config' $toml @WranglerArgs 2>&1 |
+    ForEach-Object {
+      $text = if ($_ -is [System.Management.Automation.ErrorRecord]) { $_.Exception.Message } else { [string]$_ }
+      if ($text -and $text -ne 'System.Management.Automation.RemoteException') { $text }
+    }
+  $code = $LASTEXITCODE
+  $ErrorActionPreference = $prev
+  $out = $lines -join "`n"
+  if ($code -ne 0) {
     Write-Host $out -ForegroundColor DarkGray
     if ($AllowFail) { return $null }
-    Die "wrangler $($Args -join ' ') завершился с кодом $LASTEXITCODE"
+    Die "wrangler $($WranglerArgs -join ' ') завершился с кодом $code"
   }
   return $out
 }
@@ -114,7 +125,7 @@ else {
 
 # ── 3. KV-хранилище ─────────────────────────────────────────────────────────
 Step 'KV-хранилище заказов'
-$kvOut = Invoke-Wrangler @('kv', 'namespace', 'list', '--json') -AllowFail
+$kvOut = Invoke-Wrangler @('kv', 'namespace', 'list') -AllowFail
 $kvId = $null
 if ($kvOut -and (Test-Path -LiteralPath $toml)) {
   $current = (Get-Content -LiteralPath $toml -Raw)
@@ -168,8 +179,10 @@ if (-not $deployOut) {
   Write-Host ''
   exit 1
 }
-if ($deployOut -match 'https://([a-z0-9.-]*workers\.dev)') { $WorkerUrl = 'https://' + $Matches[1] }
-elseif (-not $WorkerUrl) { Die 'Не удалось определить адрес Worker из вывода wrangler deploy' }
+if ($deployOut -match 'https://([a-z0-9.-]*?workers\.dev)') { $WorkerUrl = 'https://' + $Matches[1] }
+if (-not $WorkerUrl) {
+  Die 'Не удалось определить адрес Worker из вывода wrangler deploy. Укажи его вручную: setup.ps1 -WorkerUrl https://<имя>.<поддомен>.workers.dev'
+}
 Ok "Адрес: $WorkerUrl"
 
 # ── 6. Адрес Worker'а на страницах ──────────────────────────────────────────
@@ -213,7 +226,13 @@ function Call {
 }
 
 $ping = Call '/ping'
-if ($ping.Code -eq 200) { Ok '/ping отвечает' } else { Warn "/ping вернул $($ping.Code) — Worker мог не успеть проснуться" }
+foreach ($i in 1..12) {
+  if ($ping.Code -eq 200) { break }
+  Info "Worker ещё не отвечает (попытка $i/12) — DNS и сертификат после первого деплоя едут до 2 минут"
+  Start-Sleep -Seconds 10
+  $ping = Call '/ping'
+}
+if ($ping.Code -eq 200) { Ok '/ping отвечает' } else { Die "/ping вернул $($ping.Code) — проверь адрес $WorkerUrl" }
 
 $create = Call '/create' 'POST' (@{ order_id = $order; amount = '1.00'; chat_id = 0; plan = 'smoke-test' } | ConvertTo-Json -Compress) @{ 'x-api-secret' = $ApiSecret }
 if ($create.Code -eq 200) { Ok "/create создал заказ $order" } else { Die "/create вернул $($create.Code): $($create.Text)" }
@@ -226,7 +245,8 @@ if ($sigBad.Code -eq 403) { Ok 'подделка подписи отклонен
 
 $sig = Md5 "$MerchantId`:$order`:1.00`:RUB`:PAID`:$SecretKey"
 $pay = Call "/notify?order_id=$order&order_amount=1.00&order_currency=RUB&order_status=PAID&ID=smoke1&signature=$sig" 'POST'
-if ($pay.Code -eq 200) { Ok 'оповещение с верной подписью принято' } else { Warn "notify вернул $($pay.Code): $($pay.Text)" }
+if ($pay.Code -eq 200) { Ok 'оповещение с верной подписью принято' }
+else { Warn "notify вернул $($pay.Code): $($pay.Text)"; Warn "sig=[$sig] len=$($sig.Length)"; Warn "url=[$WorkerUrl/notify?order_id=$order&order_amount=1.00&order_currency=RUB&order_status=PAID&ID=smoke1&signature=$sig]" }
 
 $st2 = Call "/status?order_id=$order"
 if (($st2.Text | ConvertFrom-Json).status -eq 'paid') { Ok '/status показал paid — цикл работает' } else { Warn "/status после оплаты: $($st2.Text)" }
