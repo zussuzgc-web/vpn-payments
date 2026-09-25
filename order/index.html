@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ожидаем оплату</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🛡️</text></svg>" />
+    <link rel="stylesheet" href="../assets/style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="url(#g)" stroke-width="1.8">
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="24" y2="24">
+                <stop stop-color="#5b8cff" /><stop offset="1" stop-color="#9b6bff" />
+              </linearGradient>
+            </defs>
+            <path d="M12 3 4 6v6c0 5 3.4 8.4 8 9 4.6-.6 8-4 8-9V6l-8-3Z" />
+          </svg>
+          <b>FreeFi VPN</b>
+        </div>
+
+        <div class="spinner" id="spinner"></div>
+
+        <div id="wait-block" style="display: none">
+          <div class="badge wait" id="state-box">
+            <span id="state-icon"></span>
+          </div>
+          <h1 id="state-title">Ожидаем оплату</h1>
+          <p class="lead" id="state-note"></p>
+        </div>
+
+        <div class="rows">
+          <div class="row"><span>Заказ</span><b class="mono" id="order-id">—</b></div>
+          <div class="row"><span>Сумма</span><b id="amount">—</b></div>
+          <div class="row"><span>Состояние</span><b id="state-dot"><span class="dot wait"></span>Ожидает</b></div>
+          <div class="row"><span>Создан</span><b class="mono" id="created-at">—</b></div>
+          <div class="row"><span>Оплачен</span><b class="mono" id="paid-at">—</b></div>
+        </div>
+
+        <div class="actions">
+          <a class="btn primary" data-bot-url href="https://t.me/FreeFi_bot">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M21.7 4.3 2.9 11.5c-.9.3-.9 1.6.1 1.8l4.6 1.4 1.8 5.6c.2.7 1.1.9 1.6.3l2.5-2.7 4.7 3.4c.6.4 1.4.1 1.6-.6l3.2-14.9c.2-.8-.6-1.5-1.3-1.3ZM9.6 14.1l-.9 3.7-.6-2.9 8.4-5.9-6.9 5.1Z" />
+            </svg>
+            Вернуться в бот
+          </a>
+          <a class="btn ghost" href="/">Все адреса проекта</a>
+        </div>
+
+        <div class="timer" id="countdown"></div>
+        <div class="foot">Страница обновляет статус автоматически каждые 5 секунд.</div>
+      </div>
+    </div>
+
+    <script src="../assets/app.js"></script>
+  </body>
+</html>
